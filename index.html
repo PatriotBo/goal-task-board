@@ -1,0 +1,1656 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🎯 Goal-Driven Task Board</title>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg-primary: #0f0f23;
+      --bg-secondary: #1a1a2e;
+      --bg-card: #222244;
+      --bg-hover: #2a2a50;
+      --border-subtle: rgba(255, 255, 255, 0.06);
+      --border-accent: rgba(99, 102, 241, 0.3);
+      --text-primary: #f3f4f6;
+      --text-secondary: #9ca3af;
+      --text-muted: #6b7280;
+      --accent-indigo: #818cf8;
+      --accent-purple: #c084fc;
+      --accent-blue: #60a5fa;
+      --accent-yellow: #fbbf24;
+      --accent-green: #34d399;
+      --accent-red: #f87171;
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --radius-lg: 14px;
+      --radius-xl: 18px;
+      --shadow-card: 0 2px 12px rgba(0, 0, 0, 0.2);
+      --shadow-hover: 0 8px 32px rgba(0, 0, 0, 0.35);
+      --transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans SC', sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ===== HEADER ===== */
+    .header {
+      background: linear-gradient(135deg, #1a1a3e 0%, var(--bg-primary) 100%);
+      border-bottom: 1px solid var(--border-subtle);
+      padding: 20px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      backdrop-filter: blur(12px);
+    }
+
+    .header-left h1 {
+      font-size: 22px;
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--accent-indigo), var(--accent-purple));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .header-left .last-updated {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    .header-stats {
+      display: flex;
+      gap: 20px;
+    }
+
+    .stat-block {
+      text-align: center;
+    }
+
+    .stat-block .stat-value {
+      font-size: 22px;
+      font-weight: 700;
+      display: block;
+    }
+
+    .stat-block .stat-label {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .stat-block.todo .stat-value { color: var(--accent-blue); }
+    .stat-block.progress .stat-value { color: var(--accent-yellow); }
+    .stat-block.done .stat-value { color: var(--accent-green); }
+
+    .header-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .view-toggle {
+      display: flex;
+      background: rgba(255,255,255,0.05);
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+      border: 1px solid var(--border-subtle);
+    }
+
+    .view-toggle button {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      padding: 6px 12px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: var(--transition);
+    }
+
+    .view-toggle button.active {
+      background: rgba(99, 102, 241, 0.2);
+      color: var(--accent-indigo);
+    }
+
+    .view-toggle button:hover:not(.active) {
+      color: var(--text-secondary);
+    }
+
+    .refresh-btn {
+      background: rgba(99, 102, 241, 0.1);
+      border: 1px solid var(--border-accent);
+      color: var(--accent-indigo);
+      padding: 6px 14px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      font-size: 12px;
+      transition: var(--transition);
+    }
+
+    .refresh-btn:hover {
+      background: rgba(99, 102, 241, 0.2);
+    }
+
+    /* ===== FILTER BAR ===== */
+    .filter-bar {
+      padding: 12px 32px;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .filter-chip {
+      padding: 5px 14px;
+      border-radius: 20px;
+      font-size: 12px;
+      border: 1px solid var(--border-subtle);
+      background: transparent;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: var(--transition);
+      user-select: none;
+    }
+
+    .filter-chip:hover {
+      border-color: var(--border-accent);
+      color: var(--text-primary);
+    }
+
+    .filter-chip.active {
+      background: rgba(99, 102, 241, 0.15);
+      border-color: var(--accent-indigo);
+      color: var(--accent-indigo);
+    }
+
+    /* ===== MAIN CONTENT ===== */
+    .main-content {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 24px 32px;
+      transition: var(--transition);
+    }
+
+    .main-content.with-panel {
+      max-width: 900px;
+      margin-right: 480px;
+    }
+
+    /* ===== TIMELINE VIEW ===== */
+    .date-group {
+      margin-bottom: 20px;
+    }
+
+    .date-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      background: var(--bg-secondary);
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      user-select: none;
+      transition: var(--transition);
+      border: 1px solid var(--border-subtle);
+      margin-bottom: 2px;
+    }
+
+    .date-header:hover {
+      border-color: var(--border-accent);
+      background: var(--bg-card);
+    }
+
+    .date-header .collapse-icon {
+      font-size: 12px;
+      transition: transform 0.25s ease;
+      color: var(--text-muted);
+      width: 16px;
+      text-align: center;
+    }
+
+    .date-header .collapse-icon.collapsed {
+      transform: rotate(-90deg);
+    }
+
+    .date-header .date-text {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .date-header .date-weekday {
+      font-size: 12px;
+      color: var(--accent-indigo);
+      font-weight: 500;
+    }
+
+    .date-header .date-badge {
+      margin-left: auto;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .date-header .date-badge .badge {
+      font-size: 11px;
+      padding: 2px 10px;
+      border-radius: 12px;
+      font-weight: 500;
+    }
+
+    .badge.done-badge {
+      background: rgba(52, 211, 153, 0.12);
+      color: var(--accent-green);
+    }
+
+    .badge.todo-badge {
+      background: rgba(96, 165, 250, 0.12);
+      color: var(--accent-blue);
+    }
+
+    .badge.progress-badge {
+      background: rgba(251, 191, 36, 0.12);
+      color: var(--accent-yellow);
+    }
+
+    .date-today .date-header {
+      border-color: rgba(99, 102, 241, 0.4);
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(192, 132, 252, 0.05));
+    }
+
+    .date-today .date-text::after {
+      content: 'TODAY';
+      margin-left: 8px;
+      font-size: 10px;
+      padding: 1px 6px;
+      border-radius: 4px;
+      background: var(--accent-indigo);
+      color: white;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      vertical-align: middle;
+    }
+
+    .date-tasks {
+      overflow: hidden;
+      transition: max-height 0.35s ease, opacity 0.25s ease;
+      max-height: 2000px;
+      opacity: 1;
+      padding-left: 20px;
+      border-left: 2px solid rgba(99, 102, 241, 0.15);
+      margin-left: 24px;
+      margin-top: 4px;
+    }
+
+    .date-tasks.collapsed {
+      max-height: 0;
+      opacity: 0;
+      margin-top: 0;
+    }
+
+    /* ===== TASK CARDS ===== */
+    .task-card {
+      background: var(--bg-card);
+      border-radius: var(--radius-md);
+      padding: 16px 20px;
+      margin: 8px 0;
+      border: 1px solid var(--border-subtle);
+      cursor: pointer;
+      transition: var(--transition);
+      position: relative;
+    }
+
+    .task-card:hover {
+      transform: translateX(4px);
+      border-color: var(--border-accent);
+      box-shadow: var(--shadow-card);
+      background: var(--bg-hover);
+    }
+
+    .task-card.active {
+      border-color: var(--accent-indigo);
+      box-shadow: 0 0 0 1px var(--accent-indigo), var(--shadow-card);
+    }
+
+    .task-card .card-top {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+    }
+
+    .task-card .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      margin-top: 5px;
+      flex-shrink: 0;
+    }
+
+    .status-dot.todo { background: var(--accent-blue); box-shadow: 0 0 8px rgba(96, 165, 250, 0.4); }
+    .status-dot.in-progress { background: var(--accent-yellow); box-shadow: 0 0 8px rgba(251, 191, 36, 0.4); animation: pulse 2s infinite; }
+    .status-dot.done { background: var(--accent-green); box-shadow: 0 0 8px rgba(52, 211, 153, 0.3); }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .card-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .card-info .task-id {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+      margin-bottom: 4px;
+    }
+
+    .card-info .task-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+      line-height: 1.4;
+      margin-bottom: 6px;
+    }
+
+    .card-info .task-desc {
+      font-size: 12px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .card-bottom {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 12px;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .card-bottom .goal-tag {
+      font-size: 11px;
+      padding: 3px 10px;
+      border-radius: var(--radius-sm);
+      font-weight: 500;
+    }
+
+    .goal-tag.career { background: rgba(99, 102, 241, 0.12); color: var(--accent-indigo); }
+    .goal-tag.personal { background: rgba(52, 211, 153, 0.12); color: var(--accent-green); }
+    .goal-tag.finance { background: rgba(251, 191, 36, 0.12); color: var(--accent-yellow); }
+
+    .card-bottom .output-link {
+      font-size: 11px;
+      color: var(--accent-indigo);
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      padding: 3px 8px;
+      background: rgba(99, 102, 241, 0.08);
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: var(--transition);
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .card-bottom .output-link:hover {
+      background: rgba(99, 102, 241, 0.18);
+      color: var(--accent-purple);
+    }
+
+    .card-arrow {
+      color: var(--text-muted);
+      font-size: 16px;
+      margin-left: 8px;
+      transition: var(--transition);
+    }
+
+    .task-card:hover .card-arrow {
+      color: var(--accent-indigo);
+      transform: translateX(2px);
+    }
+
+    /* ===== KANBAN VIEW ===== */
+    .kanban-board {
+      display: none;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+      min-height: calc(100vh - 160px);
+    }
+
+    .kanban-board.active {
+      display: grid;
+    }
+
+    .kanban-column {
+      background: var(--bg-secondary);
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border-subtle);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .kanban-column-header {
+      padding: 16px 20px;
+      font-size: 15px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .kanban-column.col-todo .kanban-column-header { color: var(--accent-blue); }
+    .kanban-column.col-progress .kanban-column-header { color: var(--accent-yellow); }
+    .kanban-column.col-done .kanban-column-header { color: var(--accent-green); }
+
+    .kanban-column-header .count {
+      background: rgba(255, 255, 255, 0.08);
+      padding: 2px 10px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-secondary);
+    }
+
+    .kanban-column-body {
+      padding: 12px;
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    /* ===== DETAIL PANEL (Side Drawer) ===== */
+    .detail-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 200;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+
+    .detail-overlay.open {
+      opacity: 1;
+      pointer-events: all;
+    }
+
+    .detail-panel {
+      position: fixed;
+      top: 0;
+      right: 0;
+      width: 520px;
+      min-width: 360px;
+      max-width: 90vw;
+      height: 100vh;
+      background: var(--bg-secondary);
+      z-index: 201;
+      transform: translateX(100%);
+      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      display: flex;
+      flex-direction: column;
+      border-left: 1px solid var(--border-subtle);
+      box-shadow: -8px 0 40px rgba(0, 0, 0, 0.3);
+    }
+
+    .detail-panel.open {
+      transform: translateX(0);
+    }
+
+    .detail-panel.resizing {
+      transition: none;
+      user-select: none;
+    }
+
+    /* ===== RESIZE HANDLE ===== */
+    .panel-resize-handle {
+      position: absolute;
+      top: 0;
+      left: -4px;
+      width: 8px;
+      height: 100%;
+      cursor: col-resize;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .panel-resize-handle::after {
+      content: '';
+      width: 3px;
+      height: 40px;
+      border-radius: 2px;
+      background: rgba(255, 255, 255, 0.1);
+      transition: background 0.2s, height 0.2s;
+    }
+
+    .panel-resize-handle:hover::after,
+    .panel-resize-handle.active::after {
+      background: var(--accent-indigo);
+      height: 60px;
+      box-shadow: 0 0 8px rgba(99, 102, 241, 0.4);
+    }
+
+    .panel-header {
+      padding: 20px 24px;
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+    }
+
+    .panel-close {
+      width: 32px;
+      height: 32px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-subtle);
+      background: rgba(255,255,255,0.04);
+      color: var(--text-secondary);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      transition: var(--transition);
+      flex-shrink: 0;
+    }
+
+    .panel-close:hover {
+      background: rgba(248, 113, 113, 0.12);
+      border-color: var(--accent-red);
+      color: var(--accent-red);
+    }
+
+    .panel-header-info {
+      flex: 1;
+    }
+
+    .panel-header-info .panel-task-id {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      margin-bottom: 4px;
+    }
+
+    .panel-header-info .panel-task-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text-primary);
+      line-height: 1.4;
+    }
+
+    .panel-header-info .panel-meta {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .panel-status-tag {
+      font-size: 11px;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .panel-status-tag.s-todo { background: rgba(96,165,250,0.15); color: var(--accent-blue); }
+    .panel-status-tag.s-progress { background: rgba(251,191,36,0.15); color: var(--accent-yellow); }
+    .panel-status-tag.s-done { background: rgba(52,211,153,0.15); color: var(--accent-green); }
+
+    .panel-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px;
+    }
+
+    .panel-section {
+      margin-bottom: 24px;
+    }
+
+    .panel-section-title {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 8px;
+    }
+
+    .panel-section .desc-text {
+      font-size: 14px;
+      color: var(--text-secondary);
+      line-height: 1.7;
+    }
+
+    /* ===== FILE VIEWER ===== */
+    .file-viewer-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 10px 16px;
+      background: rgba(99, 102, 241, 0.08);
+      border: 1px solid var(--border-accent);
+      border-radius: var(--radius-md);
+      color: var(--accent-indigo);
+      font-size: 13px;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      cursor: pointer;
+      transition: var(--transition);
+      width: 100%;
+      text-align: left;
+    }
+
+    .file-viewer-btn:hover {
+      background: rgba(99, 102, 241, 0.16);
+      border-color: var(--accent-indigo);
+    }
+
+    .file-viewer-btn .file-icon {
+      font-size: 16px;
+    }
+
+    .file-viewer-btn .file-name {
+      flex: 1;
+    }
+
+    .file-viewer-btn .file-action {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .md-viewer {
+      margin-top: 12px;
+      background: var(--bg-primary);
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border-subtle);
+      overflow: hidden;
+      transition: max-height 0.4s ease, opacity 0.3s ease;
+    }
+
+    .md-viewer.collapsed {
+      max-height: 0 !important;
+      opacity: 0;
+      border: none;
+    }
+
+    .md-viewer-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 16px;
+      background: rgba(99, 102, 241, 0.06);
+      border-bottom: 1px solid var(--border-subtle);
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .md-viewer-close {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 14px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      transition: var(--transition);
+    }
+
+    .md-viewer-close:hover {
+      background: rgba(255,255,255,0.08);
+      color: var(--text-primary);
+    }
+
+    .md-viewer-body {
+      padding: 20px 24px;
+      overflow-y: auto;
+      max-height: 60vh;
+    }
+
+    .truncation-notice {
+      margin-top: 16px;
+      padding: 12px 16px;
+      background: rgba(251, 191, 36, 0.08);
+      border: 1px solid rgba(251, 191, 36, 0.2);
+      border-radius: var(--radius-sm);
+      color: var(--accent-yellow);
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .truncation-notice .tn-icon { font-size: 16px; }
+    .truncation-notice .tn-path {
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 12px;
+      color: var(--accent-indigo);
+      background: rgba(99, 102, 241, 0.1);
+      padding: 1px 6px;
+      border-radius: 4px;
+    }
+
+    /* ===== MARKDOWN STYLES ===== */
+    .md-content {
+      font-size: 14px;
+      line-height: 1.75;
+      color: var(--text-secondary);
+    }
+
+    .md-content h1 {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin: 24px 0 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .md-content h1:first-child { margin-top: 0; }
+
+    .md-content h2 {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin: 20px 0 10px;
+    }
+
+    .md-content h3 {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--accent-indigo);
+      margin: 16px 0 8px;
+    }
+
+    .md-content h4 {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--accent-purple);
+      margin: 12px 0 6px;
+    }
+
+    .md-content p {
+      margin: 8px 0;
+    }
+
+    .md-content strong {
+      color: var(--text-primary);
+      font-weight: 600;
+    }
+
+    .md-content em {
+      color: var(--accent-purple);
+    }
+
+    .md-content a {
+      color: var(--accent-indigo);
+      text-decoration: none;
+    }
+
+    .md-content a:hover {
+      text-decoration: underline;
+    }
+
+    .md-content ul, .md-content ol {
+      padding-left: 20px;
+      margin: 8px 0;
+    }
+
+    .md-content li {
+      margin: 4px 0;
+    }
+
+    .md-content li::marker {
+      color: var(--accent-indigo);
+    }
+
+    .md-content blockquote {
+      border-left: 3px solid var(--accent-indigo);
+      padding: 8px 16px;
+      margin: 12px 0;
+      background: rgba(99, 102, 241, 0.06);
+      border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+      color: var(--text-secondary);
+    }
+
+    .md-content code {
+      font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+      font-size: 13px;
+      background: rgba(99, 102, 241, 0.1);
+      color: var(--accent-purple);
+      padding: 1px 6px;
+      border-radius: 4px;
+    }
+
+    .md-content pre {
+      background: #151530;
+      border-radius: var(--radius-sm);
+      padding: 16px;
+      margin: 12px 0;
+      overflow-x: auto;
+      border: 1px solid var(--border-subtle);
+    }
+
+    .md-content pre code {
+      background: none;
+      padding: 0;
+      color: var(--text-secondary);
+      font-size: 12px;
+      line-height: 1.6;
+    }
+
+    .md-content table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 12px 0;
+      font-size: 13px;
+    }
+
+    .md-content th {
+      background: rgba(99, 102, 241, 0.08);
+      color: var(--accent-indigo);
+      font-weight: 600;
+      text-align: left;
+      padding: 10px 12px;
+      border: 1px solid var(--border-subtle);
+    }
+
+    .md-content td {
+      padding: 8px 12px;
+      border: 1px solid var(--border-subtle);
+      color: var(--text-secondary);
+    }
+
+    .md-content tr:hover td {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .md-content hr {
+      border: none;
+      border-top: 1px solid var(--border-subtle);
+      margin: 20px 0;
+    }
+
+    .md-content img {
+      max-width: 100%;
+      border-radius: var(--radius-sm);
+    }
+
+    /* ===== LOADING SPINNER ===== */
+    .loading-spinner {
+      text-align: center;
+      padding: 40px;
+      color: var(--text-muted);
+    }
+
+    .loading-spinner::after {
+      content: '';
+      display: inline-block;
+      width: 24px;
+      height: 24px;
+      border: 2px solid var(--border-subtle);
+      border-top-color: var(--accent-indigo);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-bottom: 8px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* ===== EMPTY STATE ===== */
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--text-muted);
+      font-size: 13px;
+    }
+
+    .empty-state .empty-icon {
+      font-size: 36px;
+      margin-bottom: 12px;
+      opacity: 0.4;
+    }
+
+    /* ===== SCROLLBAR ===== */
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 3px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    /* ===== RESPONSIVE ===== */
+    @media (max-width: 768px) {
+      .header {
+        flex-direction: column;
+        gap: 12px;
+        padding: 16px;
+      }
+
+      .main-content {
+        padding: 16px;
+      }
+
+      .main-content.with-panel {
+        margin-right: 0;
+      }
+
+      .detail-panel {
+        width: 100vw;
+      }
+
+      .kanban-board {
+        grid-template-columns: 1fr;
+      }
+
+      .filter-bar {
+        padding: 12px 16px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="header-left">
+      <h1>🎯 Goal-Driven Task Board</h1>
+      <div class="last-updated" id="lastUpdated">加载中...</div>
+    </div>
+    <div class="header-stats">
+      <div class="stat-block todo">
+        <span class="stat-value" id="todoCount">0</span>
+        <span class="stat-label">待办</span>
+      </div>
+      <div class="stat-block progress">
+        <span class="stat-value" id="progressCount">0</span>
+        <span class="stat-label">进行中</span>
+      </div>
+      <div class="stat-block done">
+        <span class="stat-value" id="doneCount">0</span>
+        <span class="stat-label">已完成</span>
+      </div>
+    </div>
+    <div class="header-actions">
+      <div class="view-toggle">
+        <button class="active" id="timelineViewBtn" onclick="switchView('timeline')">📅 时间线</button>
+        <button id="kanbanViewBtn" onclick="switchView('kanban')">📋 看板</button>
+      </div>
+      <button class="refresh-btn" onclick="loadData()">↻ 刷新</button>
+    </div>
+  </div>
+
+  <!-- FILTER BAR -->
+  <div class="filter-bar">
+    <button class="filter-chip active" data-filter="all" onclick="setFilter('all', this)">全部</button>
+    <button class="filter-chip" data-filter="todo" onclick="setFilter('todo', this)">📋 待办</button>
+    <button class="filter-chip" data-filter="in-progress" onclick="setFilter('in-progress', this)">🔄 进行中</button>
+    <button class="filter-chip" data-filter="done" onclick="setFilter('done', this)">✅ 已完成</button>
+    <span style="width:1px;background:var(--border-subtle);margin:0 4px;"></span>
+    <button class="filter-chip" data-filter="career" onclick="setFilter('career', this)">🚀 职业</button>
+    <button class="filter-chip" data-filter="personal" onclick="setFilter('personal', this)">🌱 个人</button>
+    <button class="filter-chip" data-filter="finance" onclick="setFilter('finance', this)">💰 理财</button>
+  </div>
+
+  <!-- MAIN CONTENT -->
+  <div class="main-content" id="mainContent">
+    <!-- Timeline View -->
+    <div id="timelineView"></div>
+
+    <!-- Kanban View -->
+    <div class="kanban-board" id="kanbanView">
+      <div class="kanban-column col-todo">
+        <div class="kanban-column-header">
+          📋 To Do
+          <span class="count" id="kanbanTodoBadge">0</span>
+        </div>
+        <div class="kanban-column-body" id="kanbanTodoCol"></div>
+      </div>
+      <div class="kanban-column col-progress">
+        <div class="kanban-column-header">
+          🔄 In Progress
+          <span class="count" id="kanbanProgressBadge">0</span>
+        </div>
+        <div class="kanban-column-body" id="kanbanProgressCol"></div>
+      </div>
+      <div class="kanban-column col-done">
+        <div class="kanban-column-header">
+          ✅ Done
+          <span class="count" id="kanbanDoneBadge">0</span>
+        </div>
+        <div class="kanban-column-body" id="kanbanDoneCol"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DETAIL PANEL OVERLAY -->
+  <div class="detail-overlay" id="detailOverlay" onclick="closePanel()"></div>
+
+  <!-- DETAIL PANEL -->
+  <div class="detail-panel" id="detailPanel">
+    <div class="panel-resize-handle" id="panelResizeHandle"></div>
+    <div class="panel-header">
+      <button class="panel-close" onclick="closePanel()" title="关闭">✕</button>
+      <div class="panel-header-info">
+        <div class="panel-task-id" id="panelTaskId"></div>
+        <div class="panel-task-title" id="panelTaskTitle"></div>
+        <div class="panel-meta" id="panelMeta"></div>
+      </div>
+    </div>
+    <div class="panel-body" id="panelBody"></div>
+  </div>
+
+  <script>
+    // ===== STATE =====
+    let allTasks = [];
+    let currentView = 'timeline';
+    let currentFilter = 'all';
+    let currentActiveCard = null;
+    let collapsedDates = new Set();
+    let fileContentCache = {};
+    let projectBaseURL = '';  // 项目根目录的 base URL，通过 data.json 反推
+
+    const GOAL_MAP = {
+      'AI 学习': 'career', 'AI学习': 'career',
+      '独立开发': 'career', '吵架帮手': 'career',
+      'X 运营': 'career', 'X运营': 'career',
+      '英语': 'personal', '育儿': 'personal',
+      '理财': 'finance', '投资': 'finance',
+      'A股': 'finance', 'H股': 'finance',
+    };
+
+    const GOAL_ICONS = {
+      'career': '🚀', 'personal': '🌱', 'finance': '💰'
+    };
+
+    const WEEKDAYS = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
+
+    function getGoalCategory(g) {
+      if (!g) return 'career';
+      for (const [k, v] of Object.entries(GOAL_MAP)) {
+        if (g.includes(k)) return v;
+      }
+      return 'career';
+    }
+
+    function getStatusLabel(s) {
+      const m = { 'todo': '待办', 'in-progress': '进行中', 'done': '已完成' };
+      return m[s] || s;
+    }
+
+    function getStatusClass(s) {
+      const m = { 'todo': 's-todo', 'in-progress': 's-progress', 'done': 's-done' };
+      return m[s] || '';
+    }
+
+    function isToday(dateStr) {
+      if (!dateStr) return false;
+      const today = new Date().toISOString().split('T')[0];
+      return dateStr === today;
+    }
+
+    function formatDate(dateStr) {
+      if (!dateStr) return '未知日期';
+      const d = new Date(dateStr + 'T00:00:00');
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      const wd = WEEKDAYS[d.getDay()];
+      return { full: `${y}-${m}-${day}`, weekday: wd };
+    }
+
+    // ===== DATA =====
+    async function loadData() {
+      try {
+        // 尝试多个路径加载 data.json，同时反推项目根路径
+        let data = null;
+        const candidates = [
+          { url: './data.json', base: '../' },              // 从 kanban/ 目录访问
+          { url: '../kanban/data.json', base: '../' },      // 相对上级
+          { url: '/kanban/data.json', base: '/' },          // 绝对路径
+        ];
+
+        for (const c of candidates) {
+          try {
+            const r = await fetch(c.url + '?t=' + Date.now());
+            if (r.ok) {
+              const text = await r.text();
+              data = JSON.parse(text);
+              // 从成功的 URL 反推 base：data.json 在 kanban/ 下，所以 base 是 kanban 的上级
+              const successURL = new URL(c.url, window.location.href).href;
+              // successURL 类似 http://xxx/kanban/data.json，去掉 kanban/data.json 得到项目根
+              projectBaseURL = successURL.replace(/kanban\/data\.json.*$/, '');
+              console.log('[kanban] data.json loaded from:', successURL);
+              console.log('[kanban] project base URL:', projectBaseURL);
+              break;
+            }
+          } catch(e) { /* try next */ }
+        }
+
+        if (!data) throw new Error('All data.json paths failed');
+
+        allTasks = [];
+
+        const columns = {
+          'todo': data.columns?.todo?.tasks || [],
+          'in-progress': data.columns?.inProgress?.tasks || [],
+          'done': data.columns?.done?.tasks || []
+        };
+
+        for (const [status, tasks] of Object.entries(columns)) {
+          for (const t of tasks) {
+            allTasks.push({ ...t, status });
+          }
+        }
+
+        // Update counters
+        const todoLen = columns['todo'].length;
+        const progLen = columns['in-progress'].length;
+        const doneLen = columns['done'].length;
+
+        document.getElementById('todoCount').textContent = todoLen;
+        document.getElementById('progressCount').textContent = progLen;
+        document.getElementById('doneCount').textContent = doneLen;
+
+        if (data.lastUpdated) {
+          const d = new Date(data.lastUpdated);
+          document.getElementById('lastUpdated').textContent =
+            `最后更新：${d.toLocaleDateString('zh-CN')} ${d.toLocaleTimeString('zh-CN')}`;
+        }
+
+        // 构建内嵌文件内容索引
+        buildEmbeddedContentMap();
+
+        render();
+      } catch (e) {
+        console.error('Failed to load data:', e);
+        document.getElementById('lastUpdated').textContent = '数据加载失败';
+      }
+    }
+
+    // ===== FILTERING =====
+    function getFilteredTasks() {
+      return allTasks.filter(t => {
+        if (currentFilter === 'all') return true;
+        if (['todo', 'in-progress', 'done'].includes(currentFilter)) {
+          return t.status === currentFilter;
+        }
+        // Goal filter
+        return getGoalCategory(t.goal) === currentFilter;
+      });
+    }
+
+    function setFilter(f, el) {
+      currentFilter = f;
+      document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+      el.classList.add('active');
+      render();
+    }
+
+    // ===== VIEW SWITCHING =====
+    function switchView(view) {
+      currentView = view;
+      document.getElementById('timelineViewBtn').classList.toggle('active', view === 'timeline');
+      document.getElementById('kanbanViewBtn').classList.toggle('active', view === 'kanban');
+      render();
+    }
+
+    // ===== RENDER =====
+    function render() {
+      if (currentView === 'timeline') {
+        document.getElementById('timelineView').style.display = 'block';
+        document.getElementById('kanbanView').classList.remove('active');
+        renderTimeline();
+      } else {
+        document.getElementById('timelineView').style.display = 'none';
+        document.getElementById('kanbanView').classList.add('active');
+        renderKanban();
+      }
+    }
+
+    // ===== TIMELINE RENDER =====
+    function renderTimeline() {
+      const tasks = getFilteredTasks();
+      const container = document.getElementById('timelineView');
+
+      if (tasks.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-icon">📭</div>
+            暂无匹配的任务
+          </div>
+        `;
+        return;
+      }
+
+      // Group by date
+      const groups = {};
+      for (const t of tasks) {
+        const date = t.date || '未知日期';
+        if (!groups[date]) groups[date] = [];
+        groups[date].push(t);
+      }
+
+      // Sort dates descending (newest first)
+      const sortedDates = Object.keys(groups).sort((a, b) => {
+        if (a === '未知日期') return 1;
+        if (b === '未知日期') return -1;
+        return b.localeCompare(a);
+      });
+
+      let html = '';
+      for (const date of sortedDates) {
+        const dateTasks = groups[date];
+        const dateInfo = formatDate(date);
+        const isCollapsed = collapsedDates.has(date);
+        const todayClass = isToday(date) ? 'date-today' : '';
+
+        // Count by status
+        const doneCount = dateTasks.filter(t => t.status === 'done').length;
+        const todoCount = dateTasks.filter(t => t.status === 'todo').length;
+        const progCount = dateTasks.filter(t => t.status === 'in-progress').length;
+
+        let badges = '';
+        if (doneCount) badges += `<span class="badge done-badge">✅ ${doneCount} 完成</span>`;
+        if (progCount) badges += `<span class="badge progress-badge">🔄 ${progCount} 进行中</span>`;
+        if (todoCount) badges += `<span class="badge todo-badge">📋 ${todoCount} 待办</span>`;
+
+        html += `
+          <div class="date-group ${todayClass}">
+            <div class="date-header" onclick="toggleDate('${date}')">
+              <span class="collapse-icon ${isCollapsed ? 'collapsed' : ''}" id="icon-${date}">▼</span>
+              <span class="date-text">${dateInfo.full}</span>
+              <span class="date-weekday">${dateInfo.weekday}</span>
+              <div class="date-badge">
+                ${badges}
+              </div>
+            </div>
+            <div class="date-tasks ${isCollapsed ? 'collapsed' : ''}" id="tasks-${date}">
+              ${dateTasks.map(t => createCardHTML(t)).join('')}
+            </div>
+          </div>
+        `;
+      }
+
+      container.innerHTML = html;
+    }
+
+    // ===== KANBAN RENDER =====
+    function renderKanban() {
+      const tasks = getFilteredTasks();
+      const todo = tasks.filter(t => t.status === 'todo');
+      const prog = tasks.filter(t => t.status === 'in-progress');
+      const done = tasks.filter(t => t.status === 'done');
+
+      renderKanbanColumn('kanbanTodoCol', todo);
+      renderKanbanColumn('kanbanProgressCol', prog);
+      renderKanbanColumn('kanbanDoneCol', done);
+
+      document.getElementById('kanbanTodoBadge').textContent = todo.length;
+      document.getElementById('kanbanProgressBadge').textContent = prog.length;
+      document.getElementById('kanbanDoneBadge').textContent = done.length;
+    }
+
+    function renderKanbanColumn(colId, tasks) {
+      const el = document.getElementById(colId);
+      if (!tasks.length) {
+        el.innerHTML = `<div class="empty-state"><div class="empty-icon">📭</div>暂无任务</div>`;
+        return;
+      }
+      el.innerHTML = tasks.map(t => createCardHTML(t)).join('');
+    }
+
+    // ===== CARD HTML =====
+    function createCardHTML(task) {
+      const cat = getGoalCategory(task.goal);
+      const icon = GOAL_ICONS[cat] || '📌';
+      const activeClass = currentActiveCard === task.id ? 'active' : '';
+
+      let outputHTML = '';
+      if (task.output) {
+        const fileName = task.output.split('/').pop();
+        outputHTML = `
+          <span class="output-link" onclick="event.stopPropagation(); openFileViewer('${task.id}', '${task.output}')">
+            📄 ${fileName}
+          </span>
+        `;
+      }
+
+      return `
+        <div class="task-card ${activeClass}" id="card-${task.id}" onclick="openDetail('${task.id}')">
+          <div class="card-top">
+            <div class="status-dot ${task.status}"></div>
+            <div class="card-info">
+              <div class="task-id">${task.id}</div>
+              <div class="task-title">${task.title || '未命名任务'}</div>
+              <div class="task-desc">${task.description || ''}</div>
+            </div>
+            <span class="card-arrow">›</span>
+          </div>
+          <div class="card-bottom">
+            <span class="goal-tag ${cat}">${icon} ${task.goal || '通用'}</span>
+            ${outputHTML}
+          </div>
+        </div>
+      `;
+    }
+
+    // ===== DATE COLLAPSE =====
+    function toggleDate(date) {
+      const tasksEl = document.getElementById('tasks-' + date);
+      const iconEl = document.getElementById('icon-' + date);
+      if (!tasksEl) return;
+
+      if (collapsedDates.has(date)) {
+        collapsedDates.delete(date);
+        tasksEl.classList.remove('collapsed');
+        iconEl.classList.remove('collapsed');
+      } else {
+        collapsedDates.add(date);
+        tasksEl.classList.add('collapsed');
+        iconEl.classList.add('collapsed');
+      }
+    }
+
+    // ===== DETAIL PANEL =====
+    function openDetail(taskId) {
+      const task = allTasks.find(t => t.id === taskId);
+      if (!task) return;
+
+      currentActiveCard = taskId;
+
+      // Update card highlights
+      document.querySelectorAll('.task-card').forEach(c => c.classList.remove('active'));
+      const card = document.getElementById('card-' + taskId);
+      if (card) card.classList.add('active');
+
+      // Fill panel
+      document.getElementById('panelTaskId').textContent = task.id;
+      document.getElementById('panelTaskTitle').textContent = task.title || '未命名任务';
+
+      const cat = getGoalCategory(task.goal);
+      const icon = GOAL_ICONS[cat] || '📌';
+      document.getElementById('panelMeta').innerHTML = `
+        <span class="panel-status-tag ${getStatusClass(task.status)}">${getStatusLabel(task.status)}</span>
+        <span class="goal-tag ${cat}">${icon} ${task.goal || '通用'}</span>
+        <span style="font-size:12px;color:var(--text-muted);">📅 ${task.date || ''}</span>
+      `;
+
+      let bodyHTML = '';
+
+      // Description section
+      if (task.description) {
+        bodyHTML += `
+          <div class="panel-section">
+            <div class="panel-section-title">任务描述</div>
+            <div class="desc-text">${task.description}</div>
+          </div>
+        `;
+      }
+
+      // Output file section
+      if (task.output) {
+        const fileName = task.output.split('/').pop();
+        const ext = fileName.split('.').pop().toLowerCase();
+        const isMarkdown = ['md', 'markdown'].includes(ext);
+
+        bodyHTML += `
+          <div class="panel-section">
+            <div class="panel-section-title">产出文件</div>
+            <button class="file-viewer-btn" onclick="toggleFileContent('${task.id}', '${task.output}')">
+              <span class="file-icon">${isMarkdown ? '📝' : '📄'}</span>
+              <span class="file-name">${task.output}</span>
+              <span class="file-action">点击查看 ›</span>
+            </button>
+            <div class="md-viewer collapsed" id="md-viewer-${task.id}">
+              <div class="md-viewer-header">
+                <span>📄 ${fileName}</span>
+                <button class="md-viewer-close" onclick="closeFileContent('${task.id}')">收起 ▲</button>
+              </div>
+              <div class="md-viewer-body">
+                <div class="md-content" id="md-content-${task.id}">
+                  <div class="loading-spinner"><br>加载中...</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      document.getElementById('panelBody').innerHTML = bodyHTML;
+
+      // Open panel
+      document.getElementById('detailPanel').classList.add('open');
+      document.getElementById('detailOverlay').classList.add('open');
+    }
+
+    function closePanel() {
+      document.getElementById('detailPanel').classList.remove('open');
+      document.getElementById('detailOverlay').classList.remove('open');
+      currentActiveCard = null;
+      document.querySelectorAll('.task-card').forEach(c => c.classList.remove('active'));
+    }
+
+    // ===== FILE VIEWER =====
+    // 内嵌内容索引：task.output → task.outputContent（从 data.json 中读取）
+    let embeddedContentMap = {};
+
+    function buildEmbeddedContentMap() {
+      embeddedContentMap = {};
+      for (const t of allTasks) {
+        if (t.output && t.outputContent) {
+          embeddedContentMap[t.output] = t.outputContent;
+        }
+      }
+    }
+
+    async function loadFileContent(filePath) {
+      if (fileContentCache[filePath]) {
+        return fileContentCache[filePath];
+      }
+
+      // 策略1（最可靠）：从 data.json 内嵌的 outputContent 读取
+      // 这是唯一在所有环境（file://、IDE预览、HTTP服务器）都能工作的方式
+      if (embeddedContentMap[filePath]) {
+        fileContentCache[filePath] = embeddedContentMap[filePath];
+        return embeddedContentMap[filePath];
+      }
+
+      // 策略2：从 allTasks 中按 output 字段匹配查找 outputContent
+      // （兜底：如果 buildEmbeddedContentMap 因某种原因遗漏了）
+      for (const t of allTasks) {
+        if (t.output === filePath && t.outputContent) {
+          fileContentCache[filePath] = t.outputContent;
+          return t.outputContent;
+        }
+      }
+
+      // 策略3：尝试通过 HTTP fetch 加载（仅在 HTTP 服务器环境下有效）
+      // 注意：在 file:// 协议或 IDE 内嵌预览中，此策略通常会失败
+      if (window.location.protocol.startsWith('http')) {
+        const cleanPath = filePath.replace(/^\.\//, '');
+        const urls = [];
+        if (projectBaseURL) {
+          urls.push(projectBaseURL + cleanPath);
+        }
+        urls.push('../' + cleanPath);
+        urls.push('./' + cleanPath);
+        urls.push('/' + cleanPath);
+
+        for (const url of urls) {
+          try {
+            const resp = await fetch(url + (url.includes('?') ? '&' : '?') + 't=' + Date.now());
+            if (resp.ok) {
+              const text = await resp.text();
+              if (text && !text.startsWith('<!DOCTYPE') && !text.startsWith('<html')) {
+                fileContentCache[filePath] = text;
+                return text;
+              }
+            }
+          } catch (e) { /* try next */ }
+        }
+      }
+
+      return null;
+    }
+
+    async function toggleFileContent(taskId, filePath) {
+      const viewer = document.getElementById('md-viewer-' + taskId);
+      if (!viewer) return;
+
+      if (viewer.classList.contains('collapsed')) {
+        viewer.classList.remove('collapsed');
+        viewer.style.maxHeight = 'none';
+        // Load content
+        const contentEl = document.getElementById('md-content-' + taskId);
+        const raw = await loadFileContent(filePath);
+        if (raw) {
+          const ext = filePath.split('.').pop().toLowerCase();
+          if (['md', 'markdown'].includes(ext)) {
+            let html = marked.parse(raw);
+            // 将截断提示替换为友好样式
+            html = html.replace(
+              /\[[\.\s]*完整内容请查看原文件\s*\]/g,
+              `<div class="truncation-notice">
+                <span class="tn-icon">⚠️</span>
+                <span>内容已截断，完整内容请查看原文件：<span class="tn-path">${filePath}</span></span>
+              </div>`
+            );
+            contentEl.innerHTML = html;
+          } else {
+            contentEl.innerHTML = `<pre><code>${escapeHTML(raw)}</code></pre>`;
+          }
+        } else {
+          contentEl.innerHTML = `<div style="color:var(--accent-red);padding:20px;">
+            无法加载文件内容。<br><br>
+            <span style="color:var(--text-secondary);font-size:13px;">
+              文件路径：<code style="font-size:12px;">${filePath}</code><br>
+              原因：data.json 中缺少该任务的 <code>outputContent</code> 字段。<br>
+              修复：重新运行每日任务自动化，会自动将文件内容嵌入 data.json。
+            </span>
+          </div>`;
+        }
+      } else {
+        viewer.classList.add('collapsed');
+      }
+    }
+
+    async function openFileViewer(taskId, filePath) {
+      openDetail(taskId);
+      // Small delay to let panel render
+      await new Promise(r => setTimeout(r, 200));
+      toggleFileContent(taskId, filePath);
+    }
+
+    function closeFileContent(taskId) {
+      const viewer = document.getElementById('md-viewer-' + taskId);
+      if (viewer) viewer.classList.add('collapsed');
+    }
+
+    function escapeHTML(str) {
+      const div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
+    }
+
+    // ===== KEYBOARD SHORTCUTS =====
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        closePanel();
+      }
+    });
+
+    // ===== PANEL RESIZE =====
+    (function initPanelResize() {
+      const panel = document.getElementById('detailPanel');
+      const handle = document.getElementById('panelResizeHandle');
+      let isResizing = false;
+      let startX = 0;
+      let startWidth = 0;
+
+      // Restore saved width
+      const savedWidth = localStorage.getItem('kanban-panel-width');
+      if (savedWidth) {
+        const w = parseInt(savedWidth, 10);
+        if (w >= 360 && w <= window.innerWidth * 0.9) {
+          panel.style.width = w + 'px';
+        }
+      }
+
+      handle.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        isResizing = true;
+        startX = e.clientX;
+        startWidth = panel.getBoundingClientRect().width;
+        panel.classList.add('resizing');
+        handle.classList.add('active');
+        document.body.style.cursor = 'col-resize';
+        document.body.style.userSelect = 'none';
+      });
+
+      document.addEventListener('mousemove', (e) => {
+        if (!isResizing) return;
+        const dx = startX - e.clientX; // dragging left increases width
+        let newWidth = startWidth + dx;
+        const minW = 360;
+        const maxW = window.innerWidth * 0.9;
+        newWidth = Math.max(minW, Math.min(maxW, newWidth));
+        panel.style.width = newWidth + 'px';
+      });
+
+      document.addEventListener('mouseup', () => {
+        if (!isResizing) return;
+        isResizing = false;
+        panel.classList.remove('resizing');
+        handle.classList.remove('active');
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+        // Persist width
+        localStorage.setItem('kanban-panel-width', Math.round(panel.getBoundingClientRect().width));
+      });
+    })();
+
+    // ===== INIT =====
+    loadData();
+    setInterval(loadData, 30000);
+  </script>
+</body>
+</html>
