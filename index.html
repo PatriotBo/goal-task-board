@@ -756,6 +756,130 @@
       border-radius: 4px;
     }
 
+    /* ===== CONTENT SUMMARY ===== */
+    .content-summary {
+      margin-top: 12px;
+      padding: 16px 20px;
+      background: var(--bg-primary);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+    }
+
+    .content-summary .summary-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+    }
+
+    .content-summary .summary-body {
+      font-size: 13px;
+      line-height: 1.7;
+      color: var(--text-secondary);
+    }
+
+    .content-summary .summary-body h1 {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin: 0 0 8px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .content-summary .summary-body h2 {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin: 12px 0 6px;
+    }
+
+    .content-summary .summary-body h3 {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--accent-indigo);
+      margin: 10px 0 4px;
+    }
+
+    .content-summary .summary-body p {
+      margin: 4px 0;
+    }
+
+    .content-summary .summary-body ul, .content-summary .summary-body ol {
+      padding-left: 16px;
+      margin: 4px 0;
+    }
+
+    .content-summary .summary-body li {
+      margin: 2px 0;
+    }
+
+    .content-summary .summary-body li::marker {
+      color: var(--accent-indigo);
+    }
+
+    .content-summary .summary-body strong {
+      color: var(--text-primary);
+    }
+
+    .content-summary .summary-body code {
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 12px;
+      background: rgba(99, 102, 241, 0.1);
+      color: var(--accent-purple);
+      padding: 1px 4px;
+      border-radius: 3px;
+    }
+
+    .summary-fade {
+      position: relative;
+      overflow: hidden;
+    }
+
+    .summary-fade::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 40px;
+      background: linear-gradient(transparent, var(--bg-primary));
+      pointer-events: none;
+    }
+
+    .expand-full-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      width: 100%;
+      margin-top: 10px;
+      padding: 10px;
+      background: rgba(99, 102, 241, 0.06);
+      border: 1px solid var(--border-accent);
+      border-radius: var(--radius-sm);
+      color: var(--accent-indigo);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: var(--transition);
+    }
+
+    .expand-full-btn:hover {
+      background: rgba(99, 102, 241, 0.14);
+      border-color: var(--accent-indigo);
+    }
+
+    .expand-full-btn .expand-icon {
+      transition: transform 0.3s ease;
+    }
+
+    .expand-full-btn.expanded .expand-icon {
+      transform: rotate(180deg);
+    }
+
     /* ===== MARKDOWN STYLES ===== */
     .md-content {
       font-size: 14px;
@@ -1426,24 +1550,58 @@
         `;
       }
 
-      // Output file section
+      // Output file section with summary + full content toggle
       if (task.output) {
         const fileName = task.output.split('/').pop();
         const ext = fileName.split('.').pop().toLowerCase();
         const isMarkdown = ['md', 'markdown'].includes(ext);
 
+        // Generate summary from outputContent
+        const rawContent = embeddedContentMap[task.output] || '';
+        let summaryHTML = '';
+        if (rawContent) {
+          const summaryText = generateSummary(rawContent, 20);
+          if (isMarkdown) {
+            summaryHTML = marked.parse(summaryText);
+          } else {
+            summaryHTML = `<pre><code>${escapeHTML(summaryText)}</code></pre>`;
+          }
+        }
+
+        const hasSummary = summaryHTML && rawContent.split('\n').length > 22;
+
         bodyHTML += `
           <div class="panel-section">
             <div class="panel-section-title">产出文件</div>
-            <button class="file-viewer-btn" onclick="toggleFileContent('${task.id}', '${task.output}')">
+            <button class="file-viewer-btn" onclick="event.stopPropagation(); copyFilePath('${task.output}', this)">
               <span class="file-icon">${isMarkdown ? '📝' : '📄'}</span>
               <span class="file-name">${task.output}</span>
-              <span class="file-action">点击查看 ›</span>
+              <span class="file-action" id="copy-hint-${task.id}">点击复制路径</span>
             </button>
+            ${summaryHTML ? `
+              <div class="content-summary">
+                <div class="summary-label">📋 概要</div>
+                <div class="summary-body ${hasSummary ? 'summary-fade' : ''}" id="summary-body-${task.id}">
+                  ${summaryHTML}
+                </div>
+                ${hasSummary ? `
+                  <button class="expand-full-btn" id="expand-btn-${task.id}" onclick="toggleFullContent('${task.id}', '${task.output}')">
+                    <span class="expand-icon">▼</span>
+                    <span id="expand-text-${task.id}">查看完整内容</span>
+                  </button>
+                ` : ''}
+              </div>
+            ` : `
+              <button class="file-viewer-btn" style="margin-top:8px;" onclick="toggleFileContent('${task.id}', '${task.output}')">
+                <span class="file-icon">📖</span>
+                <span class="file-name">查看内容</span>
+                <span class="file-action">点击展开 ›</span>
+              </button>
+            `}
             <div class="md-viewer collapsed" id="md-viewer-${task.id}">
               <div class="md-viewer-header">
-                <span>📄 ${fileName}</span>
-                <button class="md-viewer-close" onclick="closeFileContent('${task.id}')">收起 ▲</button>
+                <span>📄 ${fileName}（完整内容）</span>
+                <button class="md-viewer-close" onclick="collapseFullContent('${task.id}')">收起 ▲</button>
               </div>
               <div class="md-viewer-body">
                 <div class="md-content" id="md-content-${task.id}">
@@ -1480,6 +1638,114 @@
           embeddedContentMap[t.output] = t.outputContent;
         }
       }
+    }
+
+    // ===== SUMMARY GENERATOR =====
+    function generateSummary(rawContent, maxLines = 20) {
+      if (!rawContent) return '';
+      const lines = rawContent.split('\n');
+
+      // 策略：取前 maxLines 行，但如果遇到 --- 分隔符（第3行之后的），在分隔符处截断
+      let summaryLines = [];
+      for (let i = 0; i < Math.min(lines.length, maxLines); i++) {
+        // 跳过标题下方紧接的 --- （前3行）
+        if (i > 2 && lines[i].trim() === '---') {
+          break;
+        }
+        summaryLines.push(lines[i]);
+      }
+
+      // 如果摘要和原文一样长，不需要截断
+      if (summaryLines.length >= lines.length) {
+        return rawContent;
+      }
+
+      return summaryLines.join('\n');
+    }
+
+    // ===== COPY FILE PATH =====
+    function copyFilePath(filePath, btnEl) {
+      navigator.clipboard.writeText(filePath).then(() => {
+        const hintEl = btnEl.querySelector('.file-action');
+        if (hintEl) {
+          const orig = hintEl.textContent;
+          hintEl.textContent = '✅ 已复制';
+          hintEl.style.color = 'var(--accent-green)';
+          setTimeout(() => {
+            hintEl.textContent = orig;
+            hintEl.style.color = '';
+          }, 2000);
+        }
+      }).catch(() => {
+        // fallback: select text
+      });
+    }
+
+    // ===== FULL CONTENT TOGGLE =====
+    async function toggleFullContent(taskId, filePath) {
+      const viewer = document.getElementById('md-viewer-' + taskId);
+      const btn = document.getElementById('expand-btn-' + taskId);
+      const summaryBody = document.getElementById('summary-body-' + taskId);
+      if (!viewer) return;
+
+      if (viewer.classList.contains('collapsed')) {
+        // Expand full content
+        viewer.classList.remove('collapsed');
+        viewer.style.maxHeight = 'none';
+        if (btn) {
+          btn.classList.add('expanded');
+          document.getElementById('expand-text-' + taskId).textContent = '收起完整内容';
+        }
+        // Hide summary fade
+        if (summaryBody) summaryBody.classList.remove('summary-fade');
+
+        // Load content
+        const contentEl = document.getElementById('md-content-' + taskId);
+        const raw = await loadFileContent(filePath);
+        if (raw) {
+          const ext = filePath.split('.').pop().toLowerCase();
+          if (['md', 'markdown'].includes(ext)) {
+            let html = marked.parse(raw);
+            html = html.replace(
+              /\[[\.\s]*完整内容请查看原文件\s*\]/g,
+              `<div class="truncation-notice">
+                <span class="tn-icon">⚠️</span>
+                <span>内容已截断，完整内容请查看原文件：<span class="tn-path">${filePath}</span></span>
+              </div>`
+            );
+            contentEl.innerHTML = html;
+          } else {
+            contentEl.innerHTML = `<pre><code>${escapeHTML(raw)}</code></pre>`;
+          }
+        } else {
+          contentEl.innerHTML = `<div style="color:var(--accent-red);padding:20px;">
+            无法加载文件内容。<br><br>
+            <span style="color:var(--text-secondary);font-size:13px;">
+              文件路径：<code style="font-size:12px;">${filePath}</code><br>
+              原因：data.json 中缺少该任务的 <code>outputContent</code> 字段。<br>
+              修复：重新运行每日任务自动化，会自动将文件内容嵌入 data.json。
+            </span>
+          </div>`;
+        }
+
+        // Scroll the viewer into view
+        setTimeout(() => viewer.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 100);
+      } else {
+        collapseFullContent(taskId);
+      }
+    }
+
+    function collapseFullContent(taskId) {
+      const viewer = document.getElementById('md-viewer-' + taskId);
+      const btn = document.getElementById('expand-btn-' + taskId);
+      const summaryBody = document.getElementById('summary-body-' + taskId);
+      if (viewer) viewer.classList.add('collapsed');
+      if (btn) {
+        btn.classList.remove('expanded');
+        document.getElementById('expand-text-' + taskId).textContent = '查看完整内容';
+      }
+      // Restore summary fade
+      if (summaryBody) summaryBody.classList.add('summary-fade');
     }
 
     async function loadFileContent(filePath) {
@@ -1533,56 +1799,19 @@
     }
 
     async function toggleFileContent(taskId, filePath) {
-      const viewer = document.getElementById('md-viewer-' + taskId);
-      if (!viewer) return;
-
-      if (viewer.classList.contains('collapsed')) {
-        viewer.classList.remove('collapsed');
-        viewer.style.maxHeight = 'none';
-        // Load content
-        const contentEl = document.getElementById('md-content-' + taskId);
-        const raw = await loadFileContent(filePath);
-        if (raw) {
-          const ext = filePath.split('.').pop().toLowerCase();
-          if (['md', 'markdown'].includes(ext)) {
-            let html = marked.parse(raw);
-            // 将截断提示替换为友好样式
-            html = html.replace(
-              /\[[\.\s]*完整内容请查看原文件\s*\]/g,
-              `<div class="truncation-notice">
-                <span class="tn-icon">⚠️</span>
-                <span>内容已截断，完整内容请查看原文件：<span class="tn-path">${filePath}</span></span>
-              </div>`
-            );
-            contentEl.innerHTML = html;
-          } else {
-            contentEl.innerHTML = `<pre><code>${escapeHTML(raw)}</code></pre>`;
-          }
-        } else {
-          contentEl.innerHTML = `<div style="color:var(--accent-red);padding:20px;">
-            无法加载文件内容。<br><br>
-            <span style="color:var(--text-secondary);font-size:13px;">
-              文件路径：<code style="font-size:12px;">${filePath}</code><br>
-              原因：data.json 中缺少该任务的 <code>outputContent</code> 字段。<br>
-              修复：重新运行每日任务自动化，会自动将文件内容嵌入 data.json。
-            </span>
-          </div>`;
-        }
-      } else {
-        viewer.classList.add('collapsed');
-      }
+      // 用于没有摘要时的直接展开（兜底）
+      await toggleFullContent(taskId, filePath);
     }
 
     async function openFileViewer(taskId, filePath) {
       openDetail(taskId);
       // Small delay to let panel render
       await new Promise(r => setTimeout(r, 200));
-      toggleFileContent(taskId, filePath);
+      toggleFullContent(taskId, filePath);
     }
 
     function closeFileContent(taskId) {
-      const viewer = document.getElementById('md-viewer-' + taskId);
-      if (viewer) viewer.classList.add('collapsed');
+      collapseFullContent(taskId);
     }
 
     function escapeHTML(str) {
