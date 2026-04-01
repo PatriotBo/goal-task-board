@@ -1,28 +1,21 @@
 {
-  "lastUpdated": "2026-03-31T10:45:00+08:00",
+  "lastUpdated": "2026-04-01T11:00:00+08:00",
   "counters": {
-    "nextTaskId": 31
+    "nextTaskId": 34
   },
   "columns": {
     "todo": {
       "title": "📋 To Do",
       "tasks": [
         {
-          "id": "TASK-031",
-          "title": "吵架帮手 MVP Day 7（用户系统+历史记录）",
-          "description": "Supabase Auth 用户认证 + 训练历史记录持久化",
-          "goal": "独立开发",
-          "date": "2026-04-01"
-        },
-        {
-          "id": "TASK-032",
+          "id": "TASK-034",
           "title": "AI 学习第3周（LangChain 基础）",
           "description": "LangChain Chain/Agent/Tool 概念 + 用 LangChain 重构聊天助手",
           "goal": "AI学习",
           "date": "2026-04-02"
         },
         {
-          "id": "TASK-033",
+          "id": "TASK-035",
           "title": "英语播客 Episode 2 制作（Code Review口语）",
           "description": "Track B Episode 1: Code Review 场景日常英语表达",
           "goal": "英语学习",
@@ -32,19 +25,38 @@
     },
     "inProgress": {
       "title": "🔄 In Progress",
-      "tasks": [
-        {
-          "id": "TASK-027X",
-          "title": "X 首帖发布确认",
-          "description": "执行版已就绪（drafts/x-launch-final-0330.md），确认是否已发布",
-          "goal": "X运营",
-          "date": "2026-03-31"
-        }
-      ]
+      "tasks": []
     },
     "done": {
       "title": "✅ Done",
       "tasks": [
+        {
+          "id": "TASK-033",
+          "title": "X 第2帖正式发布版（AI学习Week 1复盘）",
+          "description": "将草稿升级为完整发布执行版，含Thread文案/配图建议/发布操作步骤/互动评论模板/后续帖子规划",
+          "goal": "X运营",
+          "output": "drafts/x-post-002-final.md",
+          "date": "2026-04-01",
+          "outputContent": "# X 第2帖正式发布版（AI学习Week 1复盘）\n\n> ⚠️ 该内容涉及个人投资持仓信息，已脱敏处理。\n>\n> 任务描述：将草稿升级为完整发布执行版，含Thread文案/配图建议/发布操作步骤/互动评论模板/后续帖子规划\n> 完成日期：2026-04-01\n\n---\n\n*此为脱敏版本，完整内容仅保留在本地。*"
+        },
+        {
+          "id": "TASK-032",
+          "title": "A/H股4月首日持仓跟踪",
+          "description": "3/31收盘数据：宁德-2.74%跌破410/核电-1.09%至9.05/北向240亿再下行/组合转亏-0.41%即-690元/3月微亏收官",
+          "goal": "理财",
+          "output": "research/market-tracking-0401.md",
+          "date": "2026-04-01",
+          "outputContent": "# A/H股4月首日持仓跟踪\n\n> ⚠️ 该内容涉及个人投资持仓信息，已脱敏处理。\n>\n> 任务描述：3/31收盘数据：宁德-2.74%跌破410/核电-1.09%至9.05/北向240亿再下行/组合转亏-0.41%即-690元/3月微亏收官\n> 完成日期：2026-04-01\n\n---\n\n*此为脱敏版本，完整内容仅保留在本地。*"
+        },
+        {
+          "id": "TASK-031",
+          "title": "吵架帮手 MVP Day 7（Supabase+训练记录）",
+          "description": "Supabase数据层+训练记录持久化+历史记录页面（统计面板+趋势图+记录列表），优雅降级设计，构建验证通过",
+          "goal": "独立开发",
+          "output": "apps/quarrel-helper/dev-logs/TASK-031-dev-summary.md",
+          "date": "2026-04-01",
+          "outputContent": "# TASK-031: Supabase Auth + 历史记录（用户系统 + 训练历史持久化）\n\n**日期**：2026-04-01  \n**状态**：✅ 已完成  \n**耗时**：~45 min\n\n## 完成内容\n\n### 1. 后端 — Supabase 数据层 (`backend/app/db.py`)\n\n- **Lazy 单例模式**：`_get_supabase()` 延迟初始化 Supabase 客户端\n- **优雅降级**：检测 placeholder URL（含 \"xxxxx\"）、缺失配置、import 失败时静默跳过，不影响应用启动\n- **核心函数**：\n  - `save_training_record()` — 保存训练记录到 `training_records` 表\n  - `get_training_records()` — 分页查询历史列表\n  - `get_training_record()` / `get_training_record_by_session()` — 按 ID / session_id 查详情\n  - `get_training_stats()` — 聚合统计（场次、平均分、最高分、总回合、最近分数趋势）\n- **DDL 注释**：文件内附完整建表 SQL，方便后续 Supabase 项目初始化\n\n### 2. 后端 — API 路由 (`backend/app/routers/history.py`)\n\n4 个端点：\n| 端点 | 说明 |\n|------|------|\n| `GET /api/history` | 分页查询训练记录列表 |\n| `GET /api/history/stats` | 获取聚合统计数据 |\n| `GET /api/history/{record_id}` | 按记录 ID 查详情 |\n| `GET /api/history/session/{session_id}` | 按 session 查详情 |\n\n所有端点在 DB 不可用时返回空数据 + `db_available: false`，不抛异常。\n\n### 3. 后端 — 评分后自动存储 (`backend/app/routers/chat.py`)\n\n- `evaluate_session()` 端点新增逻辑：评分完成后自动调用 `save_training_record()`\n- 用 try/except 包裹，DB 失败不阻断评分响应\n- 用户身份暂用 `\"anonymous\"`，为后续 Auth 预留 `user_id` 字段\n\n### 4. 后端 — 数据模型 (`backend/app/models/schemas.py`)\n\n新增 4 个 Pydantic 模型：\n- `TrainingRecordSummary` — 列表视图\n- `TrainingRecordDetail` — 完整详情（含消息、各维度分数、反馈）\n- `TrainingStatsResponse` — 聚合统计\n- `TrainingHistoryResponse` — 分页响应 + `db_available` 标志\n\n### 5. 前端 — 训练记录页面 (`frontend/src/app/history/page.tsx`)\n\n- **统计卡片**：训练场次、平均分、最高分、总回合\n- **分数趋势图**：最近 10 次分数柱状图\n- **记录列表**：场景名 + 难度/人格标签 + 分数（带等级着色）\n- **多状态 UI**：DB 未配置提示、空状态引导、加载骨架、加载更多分页\n\n### 6. 前端 — 导航集成\n\n- **首页** (`page.tsx`)：新增「📊 训练记录」按钮，与「开始训练」并排\n- **场景页** (`scenes/page.tsx`)：Header 右侧新增「📊 训练记录」链接\n- **History 页**：Header 含「选场景」回链 + 当前页高亮\n\n### 7. 前端 — API 层 + 类型\n\n- `lib/api.ts`：新增 4 个请求函数\n- `types/index.ts`：新增 4 个 TypeScript 接口，与后端 Pydantic 对齐\n\n## 技术决策\n\n| 决策 | 理由 |\n|------|------|\n| Lazy client + 优雅降级 | MVP 阶段 Supabase 可能未配置，不能阻断核心功能 |\n| Anonymous user_id | Auth 延后，先跑通记录存储 |\n| 评分后自动保存 | 减少用户操作步骤，训练完即保存 |\n| 前端 db_available 标志 | 明确告知用户 DB 状态，提供配置引导 |\n\n## 构建验证\n\n```\n✓ Compiled successfully in 1203ms\n✓ Generating static pages (6/6)\n\nRoute (app)                    Size   First Load JS\n├ ○ /                          163 B   106 kB\n├ ○ /history                 4.46 kB   110 kB\n├ ○ /scenes                  3.41 kB   109 kB\n├ ƒ /scenes/[id]             4.22 kB   110 kB\n└ ƒ /scenes/[id]/chat        8.02 kB   114 kB\n```\n\n## 下一步\n\n- [ ] 在 Supabase 控制台创建项目 + 执行建表 SQL\n- [ ] 配置 `.env` 中的 `SUPABASE_URL` 和 `SUPABASE_KEY`\n- [ ] 接入 Supabase Auth（邮箱 / GitHub OAuth）\n- [ ] 训练记录详情页（点击列表项查看完整对话回放）\n- [ ] 训练记录删除功能\n"
+        },
         {
           "id": "TASK-030",
           "title": "AI 学习 Week 2（CLI 聊天助手）",
